@@ -69,7 +69,7 @@ class TreinaView extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: PixelTheme.preto.withOpacity(0.32),
+                        color: PixelTheme.preto.withValues(alpha: 0.32),
                         border: Border.all(color: PixelTheme.preto, width: 3),
                       ),
                       child: Column(
@@ -81,7 +81,7 @@ class TreinaView extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           DropdownButtonFormField<String>(
-                            value: estado.categoriaSelecionada,
+                            initialValue: estado.categoriaSelecionada,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Categoria',
@@ -105,7 +105,7 @@ class TreinaView extends StatelessWidget {
                                 : null,
                           ),
                           const SizedBox(height: 10),
-                          Text(
+                          const Text(
                             'Lote atual: até 4 exemplos • Erro aleatório: 30% • Auditoria: 10 cr',
                             style: TextStyle(color: PixelTheme.textoSuave, fontSize: 12),
                           ),
@@ -145,7 +145,7 @@ class TreinaView extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(11),
                         decoration: BoxDecoration(
-                          color: PixelTheme.roxo.withOpacity(0.28),
+                          color: PixelTheme.roxo.withValues(alpha: 0.28),
                           border: Border.all(color: PixelTheme.roxo, width: 2),
                         ),
                         child: Text(estado.mensagem!, style: const TextStyle(color: PixelTheme.texto)),
@@ -198,7 +198,7 @@ class _ResumoCard extends StatelessWidget {
         width: 138,
         padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
-          color: PixelTheme.preto.withOpacity(0.32),
+          color: PixelTheme.preto.withValues(alpha: 0.32),
           border: Border.all(color: PixelTheme.preto, width: 2),
         ),
         child: Column(
@@ -256,7 +256,7 @@ class _DadoCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                color: statusCor.withOpacity(0.16),
+                color: statusCor.withValues(alpha: 0.16),
                 child: Text(status, style: TextStyle(color: statusCor, fontSize: 9, fontWeight: FontWeight.bold)),
               ),
               IconButton(
@@ -289,7 +289,7 @@ class _DatasetVazio extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         decoration: BoxDecoration(
-          color: PixelTheme.preto.withOpacity(0.25),
+          color: PixelTheme.preto.withValues(alpha: 0.25),
           border: Border.all(color: PixelTheme.preto, width: 2),
         ),
         child: const Column(

@@ -39,10 +39,10 @@ void main() {
     });
 
     test('mantém as perguntas usadas após serializar o progresso', () {
-      final original = JogoEstado(
+      const original = JogoEstado(
         creditos: 90,
-        dados: const [],
-        perguntasUsadas: const {'geo|Qual é a capital do Brasil?'},
+        dados: [],
+        perguntasUsadas: {'geo|Qual é a capital do Brasil?'},
         carregado: true,
       );
 
