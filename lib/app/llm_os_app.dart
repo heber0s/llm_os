@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/pixel_theme.dart';
 import '../features/desktop/cubit/janelas_cubit.dart';
 import '../features/jogo/bloc/jogo_bloc.dart';
+import '../features/treino/view/treina_view.dart';
 
 class LlmOsApp extends StatelessWidget {
   const LlmOsApp({super.key});
@@ -283,7 +284,11 @@ class _AppWindow extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(child: _AppPlaceholder(app: app)),
+            Expanded(
+              child: app.id == 'treina'
+                  ? const TreinaView()
+                  : _AppPlaceholder(app: app),
+            ),
           ],
         ),
       );
