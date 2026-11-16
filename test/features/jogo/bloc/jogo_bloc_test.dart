@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llm_os/features/jogo/bloc/jogo_bloc.dart';
+import 'package:llm_os/features/jogo/data/dado_treino.dart';
 import 'package:llm_os/features/jogo/data/jogo_repositorio.dart';
 
 void main() {
@@ -51,6 +52,101 @@ void main() {
       expect(restaurado.creditos, 90);
       expect(restaurado.perguntasUsadas, original.perguntasUsadas);
       expect(restaurado.carregado, isTrue);
+    });
+
+    test('treina apenas exemplos aprovados, aplica custo e persiste a época', () async {
+      final dados = [
+        for (var i = 0; i < 6; i++)
+          DadoTreino(
+            id: 'ok-$i',
+            categoriaId: 'geo',
+            categoriaNome: 'Geografia',
+            pergunta: 'Pergunta aprovada $i?',
+            resposta: 'Resposta $i.',
+            auditado: true,
+          ),
+        const DadoTreino(
+          id: 'suspeito',
+          categoriaId: 'geo',
+          categoriaNome: 'Geografia',
+          pergunta: 'Pergunta suspeita?',
+          resposta: 'Resposta errada.',
+          ruim: true,
+          auditado: true,
+        ),
+        const DadoTreino(
+          id: 'novo',
+          categoriaId: 'geo',
+          categoriaNome: 'Geografia',
+          pergunta: 'Pergunta nova?',
+          resposta: 'Resposta ainda não auditada.',
+        ),
+      ];
+      final estadoInicial = JogoEstado(
+        creditos: 30,
+        dados: dados,
+        perguntasUsadas: {for (final dado in dados) 'geo|${dado.pergunta}'},
+        carregado: true,
+      );
+      final repositorio = _RepositorioMemoria()..estadoSalvo = estadoInicial.toJson();
+      final bloc = JogoBloc(
+        repositorio,
+        duracaoTreino: const Duration(milliseconds: 10),
+        intervaloTreino: const Duration(milliseconds: 1),
+      );
+
+      final carregado = bloc.stream.firstWhere((estado) => estado.carregado);
+      bloc.add(const JogoInicializacaoSolicitada());
+      await carregado;
+
+      final concluido = bloc.stream.firstWhere(
+        (estado) => !estado.treinoEmAndamento && estado.epocasTreinadas == 1,
+      );
+      bloc.add(const TreinoSolicitado());
+      final resultado = await concluido;
+
+      expect(resultado.creditos, 24); // 5 + (6 ~/ 4)
+      expect(resultado.epocasTreinadas, 1);
+      expect(resultado.dados.where((dado) => dado.treinado).length, 6);
+      expect(resultado.dados.firstWhere((dado) => dado.id == 'suspeito').treinado, isFalse);
+      expect(resultado.dados.firstWhere((dado) => dado.id == 'novo').treinado, isFalse);
+      expect(repositorio.estadoSalvo?['epocasTreinadas'], 1);
+      expect(repositorio.estadoSalvo?['creditos'], 24);
+
+      await bloc.close();
+    });
+
+    test('não inicia treino sem exemplos aprovados auditados', () async {
+      const dado = DadoTreino(
+        id: 'novo',
+        categoriaId: 'geo',
+        categoriaNome: 'Geografia',
+        pergunta: 'Pergunta nova?',
+        resposta: 'Resposta.',
+      );
+      final inicial = JogoEstado(
+        creditos: 30,
+        dados: const [dado],
+        carregado: true,
+      );
+      final repositorio = _RepositorioMemoria()..estadoSalvo = inicial.toJson();
+      final bloc = JogoBloc(repositorio);
+
+      final carregado = bloc.stream.firstWhere((estado) => estado.carregado);
+      bloc.add(const JogoInicializacaoSolicitada());
+      await carregado;
+      final recusado = bloc.stream.firstWhere(
+        (estado) => estado.mensagem?.contains('Audite e aprove') ?? false,
+      );
+      bloc.add(const TreinoSolicitado());
+      final resultado = await recusado;
+
+      expect(resultado.creditos, 30);
+      expect(resultado.epocasTreinadas, 0);
+      expect(resultado.treinoEmAndamento, isFalse);
+      expect(repositorio.estadoSalvo?['creditos'], 30);
+
+      await bloc.close();
     });
   });
 }

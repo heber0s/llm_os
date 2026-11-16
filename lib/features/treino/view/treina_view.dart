@@ -16,6 +16,10 @@ class TreinaView extends StatelessWidget {
           final quantidadeCorreta = estado.dados
               .where((dado) => dado.auditado && !dado.ruim)
               .length;
+          final treinaveis = estado.dados
+              .where((dado) => dado.auditado && !dado.ruim && !dado.treinado)
+              .length;
+          final custoTreino = 5 + treinaveis ~/ 4;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(18),
             child: Center(
@@ -137,6 +141,38 @@ class TreinaView extends StatelessWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Exemplos aprovados prontos: $treinaveis • custo do treino: $custoTreino cr',
+                            style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 12),
+                          ),
+                          const SizedBox(height: 8),
+                          FilledButton.icon(
+                            onPressed: estado.carregado &&
+                                    !estado.treinoEmAndamento &&
+                                    treinaveis > 0 &&
+                                    estado.creditos >= custoTreino
+                                ? () => jogo.add(const TreinoSolicitado())
+                                : null,
+                            icon: Icon(estado.treinoEmAndamento ? Icons.memory : Icons.play_arrow),
+                            label: Text(estado.treinoEmAndamento
+                                ? 'Treinando modelo…'
+                                : 'Treinar modelo • $custoTreino cr'),
+                          ),
+                          if (estado.treinoEmAndamento) ...[
+                            const SizedBox(height: 10),
+                            LinearProgressIndicator(
+                              value: estado.progressoTreino,
+                              minHeight: 10,
+                              color: PixelTheme.verde,
+                              backgroundColor: PixelTheme.preto,
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Época ${estado.epocasTreinadas + 1} • ${(estado.progressoTreino * 100).round()}% • loss ${estado.lossTreino.toStringAsFixed(2)}',
+                              style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11),
+                            ),
+                          ],
                         ],
                       ),
                     ),

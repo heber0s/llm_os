@@ -50,6 +50,10 @@ class DadoRemovido extends JogoEvento {
   List<Object?> get props => [dadoId];
 }
 
+class TreinoSolicitado extends JogoEvento {
+  const TreinoSolicitado();
+}
+
 class JogoEstado extends Equatable {
   const JogoEstado({
     this.creditos = 100,
@@ -60,6 +64,9 @@ class JogoEstado extends Equatable {
     this.categoriaSelecionada = 'geo',
     this.carregado = false,
     this.mensagem,
+    this.treinoEmAndamento = false,
+    this.progressoTreino = 0,
+    this.lossTreino = 2.8,
   });
 
   final int creditos;
@@ -70,6 +77,9 @@ class JogoEstado extends Equatable {
   final String categoriaSelecionada;
   final bool carregado;
   final String? mensagem;
+  final bool treinoEmAndamento;
+  final double progressoTreino;
+  final double lossTreino;
 
   int get quantidadeDados => dados.length;
   int get capacidadeDados => 40;
@@ -88,6 +98,9 @@ class JogoEstado extends Equatable {
     String? categoriaSelecionada,
     bool? carregado,
     String? mensagem,
+    bool? treinoEmAndamento,
+    double? progressoTreino,
+    double? lossTreino,
     bool limparMensagem = false,
   }) =>
       JogoEstado(
@@ -99,6 +112,9 @@ class JogoEstado extends Equatable {
         categoriaSelecionada: categoriaSelecionada ?? this.categoriaSelecionada,
         carregado: carregado ?? this.carregado,
         mensagem: limparMensagem ? null : (mensagem ?? this.mensagem),
+        treinoEmAndamento: treinoEmAndamento ?? this.treinoEmAndamento,
+        progressoTreino: progressoTreino ?? this.progressoTreino,
+        lossTreino: lossTreino ?? this.lossTreino,
       );
 
   factory JogoEstado.fromJson(Map<String, dynamic> json) {
@@ -148,12 +164,21 @@ class JogoEstado extends Equatable {
         categoriaSelecionada,
         carregado,
         mensagem,
+        treinoEmAndamento,
+        progressoTreino,
+        lossTreino,
       ];
 }
 
 class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
-  JogoBloc(this._repositorio, {Random? aleatorio})
-      : _aleatorio = aleatorio ?? Random(),
+  JogoBloc(
+    this._repositorio, {
+    Random? aleatorio,
+    Duration duracaoTreino = const Duration(seconds: 10),
+    Duration intervaloTreino = const Duration(milliseconds: 200),
+  })  : _aleatorio = aleatorio ?? Random(),
+        _duracaoTreino = duracaoTreino,
+        _intervaloTreino = intervaloTreino,
         super(const JogoEstado()) {
     on<JogoInicializacaoSolicitada>(_inicializar);
     on<JogoReiniciadoSolicitado>(_reiniciar);
@@ -162,10 +187,13 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     on<AuditoriaSolicitada>(_auditar);
     on<SuspeitosRemovidos>(_removerSuspeitos);
     on<DadoRemovido>(_removerDado);
+    on<TreinoSolicitado>(_treinar);
   }
 
   final JogoRepositorio _repositorio;
   final Random _aleatorio;
+  final Duration _duracaoTreino;
+  final Duration _intervaloTreino;
   int _sequenciaId = 0;
 
   Future<void> _inicializar(
@@ -189,6 +217,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     JogoReiniciadoSolicitado evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     const novoEstado = JogoEstado(carregado: true);
     emit(novoEstado);
     try {
@@ -205,6 +234,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     CategoriaColetaSelecionada evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     if (!BancoPerguntas.perguntas.containsKey(evento.categoriaId)) return;
     await _publicar(
       state.copyWith(
@@ -219,6 +249,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     ColetaSolicitada evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     final pool = BancoPerguntas.perguntas[state.categoriaSelecionada] ?? const [];
     final categoria = BancoPerguntas.categoriaPorId(state.categoriaSelecionada);
     final livres = pool
@@ -287,6 +318,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     AuditoriaSolicitada evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     if (state.dados.isEmpty) {
       await _publicar(state.copyWith(mensagem: 'Colete alguns exemplos antes de auditar.'), emit);
       return;
@@ -321,6 +353,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     SuspeitosRemovidos evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     final suspeitos = state.quantidadeSuspeitos;
     if (suspeitos == 0) {
       await _publicar(state.copyWith(mensagem: 'Não há suspeitos auditados para remover.'), emit);
@@ -342,10 +375,85 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     DadoRemovido evento,
     Emitter<JogoEstado> emit,
   ) async {
+    if (_bloquearDuranteTreino(emit)) return;
     final dados = state.dados.where((dado) => dado.id != evento.dadoId).toList(growable: false);
     if (dados.length == state.dados.length) return;
     await _publicar(
       state.copyWith(dados: dados, mensagem: 'Exemplo removido do dataset.'),
+      emit,
+    );
+  }
+
+  bool _bloquearDuranteTreino(Emitter<JogoEstado> emit) {
+    if (!state.treinoEmAndamento) return false;
+    emit(state.copyWith(mensagem: 'Aguarde o treino terminar antes de alterar o dataset.'));
+    return true;
+  }
+
+  Future<void> _treinar(
+    TreinoSolicitado evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (state.treinoEmAndamento) return;
+
+    final dadosAprovados = state.dados
+        .where((dado) => dado.auditado && !dado.ruim && !dado.treinado)
+        .toList(growable: false);
+    if (dadosAprovados.isEmpty) {
+      await _publicar(
+        state.copyWith(mensagem: 'Audite e aprove exemplos antes de iniciar o treino.'),
+        emit,
+      );
+      return;
+    }
+
+    final custo = 5 + dadosAprovados.length ~/ 4;
+    if (state.creditos < custo) {
+      await _publicar(
+        state.copyWith(mensagem: 'O treino custa $custo créditos; saldo insuficiente.'),
+        emit,
+      );
+      return;
+    }
+
+    final idsTreinados = dadosAprovados.map((dado) => dado.id).toSet();
+    emit(state.copyWith(
+      treinoEmAndamento: true,
+      progressoTreino: 0,
+      lossTreino: 2.8,
+      mensagem: 'Treino iniciado com ${dadosAprovados.length} exemplo(s) aprovados.',
+    ));
+
+    final intervaloMs = max(1, _intervaloTreino.inMilliseconds);
+    final passos = max(1, (_duracaoTreino.inMilliseconds / intervaloMs).ceil());
+    final atrasoMs = max(1, (_duracaoTreino.inMilliseconds / passos).ceil());
+    for (var passo = 1; passo <= passos; passo++) {
+      await Future<void>.delayed(Duration(milliseconds: atrasoMs));
+      if (isClosed) return;
+      final progresso = passo / passos;
+      emit(state.copyWith(
+        treinoEmAndamento: true,
+        progressoTreino: progresso,
+        lossTreino: 2.8 - (2.5 * progresso),
+        limparMensagem: true,
+      ));
+    }
+
+    final dadosAtualizados = state.dados
+        .map((dado) => idsTreinados.contains(dado.id)
+            ? dado.copyWith(treinado: true)
+            : dado)
+        .toList(growable: false);
+    await _publicar(
+      state.copyWith(
+        creditos: state.creditos - custo,
+        epocasTreinadas: state.epocasTreinadas + 1,
+        dados: dadosAtualizados,
+        treinoEmAndamento: false,
+        progressoTreino: 1,
+        lossTreino: 0.3,
+        mensagem: 'Treino concluído! ${idsTreinados.length} exemplo(s) aprovado(s) incorporado(s).',
+      ),
       emit,
     );
   }
