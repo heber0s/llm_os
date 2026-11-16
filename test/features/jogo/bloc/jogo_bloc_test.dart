@@ -124,9 +124,9 @@ void main() {
         pergunta: 'Pergunta nova?',
         resposta: 'Resposta.',
       );
-      final inicial = JogoEstado(
+      const inicial = JogoEstado(
         creditos: 30,
-        dados: const [dado],
+        dados: [dado],
         carregado: true,
       );
       final repositorio = _RepositorioMemoria()..estadoSalvo = inicial.toJson();
