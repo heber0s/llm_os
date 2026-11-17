@@ -93,6 +93,7 @@ class TreinaView extends StatelessWidget {
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
                             items: BancoPerguntas.categorias
+                                .where((categoria) => estado.categoriasLiberadas.contains(categoria.id))
                                 .map(
                                   (categoria) => DropdownMenuItem<String>(
                                     value: categoria.id,
@@ -109,9 +110,9 @@ class TreinaView extends StatelessWidget {
                                 : null,
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Lote atual: até 4 exemplos • Erro aleatório: 30% • Auditoria: 10 cr',
-                            style: TextStyle(color: PixelTheme.textoSuave, fontSize: 12),
+                          Text(
+                            'Lote atual: até ${[4, 6, 8, 12][estado.nivelHardware.clamp(0, 3).toInt()]} exemplos • Erro aleatório: 30% • Auditoria: 10 cr',
+                            style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 12),
                           ),
                           const SizedBox(height: 10),
                           Wrap(

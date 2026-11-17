@@ -17,6 +17,9 @@ abstract final class BancoPerguntas {
     CategoriaDados(id: 'geo', nome: 'Geografia'),
     CategoriaDados(id: 'mat', nome: 'Matemática'),
     CategoriaDados(id: 'nat', nome: 'Natureza'),
+    CategoriaDados(id: 'ger', nome: 'Conhecimentos gerais'),
+    CategoriaDados(id: 'por', nome: 'Português'),
+    CategoriaDados(id: 'tec', nome: 'Tecnologia'),
   ];
 
   static const Map<String, List<PerguntaResposta>> perguntas = {
@@ -49,6 +52,27 @@ abstract final class BancoPerguntas {
       PerguntaResposta('Qual gás as plantas absorvem?', 'Dióxido de carbono.'),
       PerguntaResposta('A água congela em qual estado?', 'Sólido.'),
       PerguntaResposta('Qual estrela ilumina a Terra durante o dia?', 'O Sol.'),
+    ],
+    'ger': [
+      PerguntaResposta('Quantos dias tem uma semana?', 'Sete.'),
+      PerguntaResposta('Quantos meses tem um ano?', 'Doze.'),
+      PerguntaResposta('Qual planeta é conhecido como planeta vermelho?', 'Marte.'),
+      PerguntaResposta('Qual é a forma de uma bola?', 'Esfera.'),
+      PerguntaResposta('Quantas horas tem um dia?', 'Vinte e quatro.'),
+    ],
+    'por': [
+      PerguntaResposta('Qual é o plural de pão?', 'Pães.'),
+      PerguntaResposta('Qual é o feminino de ator?', 'Atriz.'),
+      PerguntaResposta('Qual é o contrário de claro?', 'Escuro.'),
+      PerguntaResposta('Qual é o plural de animal?', 'Animais.'),
+      PerguntaResposta('Qual é o contrário de rápido?', 'Devagar.'),
+    ],
+    'tec': [
+      PerguntaResposta('O que significa CPU?', 'Unidade Central de Processamento.'),
+      PerguntaResposta('O que significa IA?', 'Inteligência Artificial.'),
+      PerguntaResposta('Em programação, o que é uma variável?', 'Um espaço nomeado que armazena um valor.'),
+      PerguntaResposta('O que é um algoritmo?', 'Uma sequência de instruções para resolver um problema.'),
+      PerguntaResposta('O que significa HTML?', 'Linguagem de Marcação de Hipertexto.'),
     ],
   };
 

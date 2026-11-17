@@ -54,10 +54,104 @@ class TreinoSolicitado extends JogoEvento {
   const TreinoSolicitado();
 }
 
+class HardwareCompraSolicitada extends JogoEvento {
+  const HardwareCompraSolicitada();
+}
+
+class UpgradeCompraSolicitada extends JogoEvento {
+  const UpgradeCompraSolicitada(this.upgradeId);
+  final String upgradeId;
+
+  @override
+  List<Object?> get props => [upgradeId];
+}
+
+class PacoteCompraSolicitada extends JogoEvento {
+  const PacoteCompraSolicitada(this.categoriaId);
+  final String categoriaId;
+
+  @override
+  List<Object?> get props => [categoriaId];
+}
+
+class RotuloPayNovaRodadaSolicitada extends JogoEvento {
+  const RotuloPayNovaRodadaSolicitada();
+}
+
+class RotuloPayRespostaEnviada extends JogoEvento {
+  const RotuloPayRespostaEnviada(this.julgouCorreta);
+  final bool julgouCorreta;
+
+  @override
+  List<Object?> get props => [julgouCorreta];
+}
+
+class DigitaJaNovaFraseSolicitada extends JogoEvento {
+  const DigitaJaNovaFraseSolicitada();
+}
+
+class DigitaJaRespostaEnviada extends JogoEvento {
+  const DigitaJaRespostaEnviada(this.resposta);
+  final String resposta;
+
+  @override
+  List<Object?> get props => [resposta];
+}
+
+class DataMarketVendaSolicitada extends JogoEvento {
+  const DataMarketVendaSolicitada();
+}
+
+abstract final class CatalogoLoja {
+  static const List<int> precosHardware = [0, 150, 500, 1500];
+  static const List<String> nomesHardware = [
+    'Notebook velho',
+    'GPU de entrada',
+    'Workstation',
+    'Servidor',
+  ];
+  static const List<String> modelosHardware = [
+    'SmolLM2 135M',
+    'SmolLM2 360M',
+    'Qwen2.5 0.5B',
+    'Qwen2.5 1.5B',
+  ];
+  static const Map<String, int> precosPacotes = {
+    'ger': 120,
+    'por': 200,
+    'tec': 350,
+  };
+  static const Map<String, String> nomesPacotes = {
+    'ger': 'Conhecimentos gerais',
+    'por': 'Português',
+    'tec': 'Tecnologia',
+  };
+  static const int precoBaseSsd = 60;
+  static const int precoBaseCooler = 100;
+  static int precoSsd(int nivel) => precoBaseSsd * (nivel + 1);
+  static int precoCooler(int nivel) => precoBaseCooler * (nivel + 1);
+}
+
+abstract final class AtividadesNavegador {
+  static const List<String> frasesDigitaJa = [
+    'Dados limpos ajudam o modelo a responder melhor.',
+    'Um bom conjunto de exemplos vale mais que muitos dados ruins.',
+    'Revise cada resposta antes de iniciar o treinamento.',
+    'O pequeno robô está aprendendo com cuidado.',
+    'Organizar informações é parte importante da inteligência artificial.',
+    'Cada melhoria aproxima seu computador do próximo nível.',
+    'Perguntas claras ajudam a encontrar respostas úteis.',
+    'Treinar com qualidade é melhor do que treinar com pressa.',
+  ];
+}
+
 class JogoEstado extends Equatable {
   const JogoEstado({
     this.creditos = 100,
     this.nivelHardware = 0,
+    this.nivelSsd = 0,
+    this.nivelCooler = 0,
+    this.categoriasLiberadas = const {'geo', 'mat', 'nat'},
     this.epocasTreinadas = 0,
     this.dados = const [],
     this.perguntasUsadas = const {},
@@ -67,10 +161,20 @@ class JogoEstado extends Equatable {
     this.treinoEmAndamento = false,
     this.progressoTreino = 0,
     this.lossTreino = 2.8,
+    this.rotuloPergunta,
+    this.rotuloResposta,
+    this.rotuloRespostaCorreta = false,
+    this.rotuloSequencia = 0,
+    this.digitaFrase,
+    this.dataMarketMensagem,
+    this.perguntasVendidas = const {},
   });
 
   final int creditos;
   final int nivelHardware;
+  final int nivelSsd;
+  final int nivelCooler;
+  final Set<String> categoriasLiberadas;
   final int epocasTreinadas;
   final List<DadoTreino> dados;
   final Set<String> perguntasUsadas;
@@ -80,9 +184,16 @@ class JogoEstado extends Equatable {
   final bool treinoEmAndamento;
   final double progressoTreino;
   final double lossTreino;
+  final String? rotuloPergunta;
+  final String? rotuloResposta;
+  final bool rotuloRespostaCorreta;
+  final int rotuloSequencia;
+  final String? digitaFrase;
+  final String? dataMarketMensagem;
+  final Set<String> perguntasVendidas;
 
   int get quantidadeDados => dados.length;
-  int get capacidadeDados => 40;
+  int get capacidadeDados => 40 + (nivelSsd * 40);
   int get espacoLivre => capacidadeDados > quantidadeDados
       ? capacidadeDados - quantidadeDados
       : 0;
@@ -92,6 +203,9 @@ class JogoEstado extends Equatable {
   JogoEstado copyWith({
     int? creditos,
     int? nivelHardware,
+    int? nivelSsd,
+    int? nivelCooler,
+    Set<String>? categoriasLiberadas,
     int? epocasTreinadas,
     List<DadoTreino>? dados,
     Set<String>? perguntasUsadas,
@@ -101,11 +215,22 @@ class JogoEstado extends Equatable {
     bool? treinoEmAndamento,
     double? progressoTreino,
     double? lossTreino,
+    String? rotuloPergunta,
+    String? rotuloResposta,
+    bool? rotuloRespostaCorreta,
+    int? rotuloSequencia,
+    String? digitaFrase,
+    String? dataMarketMensagem,
+    Set<String>? perguntasVendidas,
+    bool limparRotulo = false,
     bool limparMensagem = false,
   }) =>
       JogoEstado(
         creditos: creditos ?? this.creditos,
         nivelHardware: nivelHardware ?? this.nivelHardware,
+        nivelSsd: nivelSsd ?? this.nivelSsd,
+        nivelCooler: nivelCooler ?? this.nivelCooler,
+        categoriasLiberadas: categoriasLiberadas ?? this.categoriasLiberadas,
         epocasTreinadas: epocasTreinadas ?? this.epocasTreinadas,
         dados: dados ?? this.dados,
         perguntasUsadas: perguntasUsadas ?? this.perguntasUsadas,
@@ -115,6 +240,13 @@ class JogoEstado extends Equatable {
         treinoEmAndamento: treinoEmAndamento ?? this.treinoEmAndamento,
         progressoTreino: progressoTreino ?? this.progressoTreino,
         lossTreino: lossTreino ?? this.lossTreino,
+        rotuloPergunta: limparRotulo ? null : (rotuloPergunta ?? this.rotuloPergunta),
+        rotuloResposta: limparRotulo ? null : (rotuloResposta ?? this.rotuloResposta),
+        rotuloRespostaCorreta: rotuloRespostaCorreta ?? this.rotuloRespostaCorreta,
+        rotuloSequencia: rotuloSequencia ?? this.rotuloSequencia,
+        digitaFrase: digitaFrase ?? this.digitaFrase,
+        dataMarketMensagem: dataMarketMensagem ?? this.dataMarketMensagem,
+        perguntasVendidas: perguntasVendidas ?? this.perguntasVendidas,
       );
 
   factory JogoEstado.fromJson(Map<String, dynamic> json) {
@@ -135,6 +267,15 @@ class JogoEstado extends Equatable {
     return JogoEstado(
       creditos: _inteiro(json['creditos'], 100),
       nivelHardware: _inteiro(json['nivelHardware'], 0),
+      nivelSsd: _inteiro(json['nivelSsd'], 0),
+      nivelCooler: _inteiro(json['nivelCooler'], 0),
+      rotuloSequencia: _inteiro(json['rotuloSequencia'], 0),
+      categoriasLiberadas: json['categoriasLiberadas'] is List
+          ? (json['categoriasLiberadas'] as List).whereType<String>().toSet()
+          : const {'geo', 'mat', 'nat'},
+      perguntasVendidas: json['perguntasVendidas'] is List
+          ? (json['perguntasVendidas'] as List).whereType<String>().toSet()
+          : const {},
       epocasTreinadas: _inteiro(json['epocasTreinadas'], 0),
       dados: dados,
       perguntasUsadas: usadas,
@@ -146,6 +287,11 @@ class JogoEstado extends Equatable {
   Map<String, dynamic> toJson() => {
         'creditos': creditos,
         'nivelHardware': nivelHardware,
+        'nivelSsd': nivelSsd,
+        'nivelCooler': nivelCooler,
+        'categoriasLiberadas': categoriasLiberadas.toList(growable: false),
+        'perguntasVendidas': perguntasVendidas.toList(growable: false),
+        'rotuloSequencia': rotuloSequencia,
         'epocasTreinadas': epocasTreinadas,
         'dados': dados.map((dado) => dado.toJson()).toList(growable: false),
         'perguntasUsadas': perguntasUsadas.toList(growable: false),
@@ -158,6 +304,16 @@ class JogoEstado extends Equatable {
   List<Object?> get props => [
         creditos,
         nivelHardware,
+        nivelSsd,
+        nivelCooler,
+        categoriasLiberadas,
+        rotuloPergunta,
+        rotuloResposta,
+        rotuloRespostaCorreta,
+        rotuloSequencia,
+        digitaFrase,
+        dataMarketMensagem,
+        perguntasVendidas,
         epocasTreinadas,
         dados,
         perguntasUsadas,
@@ -188,6 +344,14 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     on<SuspeitosRemovidos>(_removerSuspeitos);
     on<DadoRemovido>(_removerDado);
     on<TreinoSolicitado>(_treinar);
+    on<HardwareCompraSolicitada>(_comprarHardware);
+    on<UpgradeCompraSolicitada>(_comprarUpgrade);
+    on<PacoteCompraSolicitada>(_comprarPacote);
+    on<RotuloPayNovaRodadaSolicitada>(_novaRodadaRotulo);
+    on<RotuloPayRespostaEnviada>(_responderRotulo);
+    on<DigitaJaNovaFraseSolicitada>(_novaFraseDigita);
+    on<DigitaJaRespostaEnviada>(_responderDigita);
+    on<DataMarketVendaSolicitada>(_venderNoDataMarket);
   }
 
   final JogoRepositorio _repositorio;
@@ -235,7 +399,11 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     Emitter<JogoEstado> emit,
   ) async {
     if (_bloquearDuranteTreino(emit)) return;
-    if (!BancoPerguntas.perguntas.containsKey(evento.categoriaId)) return;
+    if (!BancoPerguntas.perguntas.containsKey(evento.categoriaId) ||
+        !state.categoriasLiberadas.contains(evento.categoriaId)) {
+      await _publicar(state.copyWith(mensagem: 'Esse pacote de dados ainda não foi liberado.'), emit);
+      return;
+    }
     await _publicar(
       state.copyWith(
         categoriaSelecionada: evento.categoriaId,
@@ -250,6 +418,10 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     Emitter<JogoEstado> emit,
   ) async {
     if (_bloquearDuranteTreino(emit)) return;
+    if (!state.categoriasLiberadas.contains(state.categoriaSelecionada)) {
+      await _publicar(state.copyWith(mensagem: 'Libere esse pacote na PixelStore antes de coletar.'), emit);
+      return;
+    }
     final pool = BancoPerguntas.perguntas[state.categoriaSelecionada] ?? const [];
     final categoria = BancoPerguntas.categoriaPorId(state.categoriaSelecionada);
     final livres = pool
@@ -424,9 +596,17 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
       mensagem: 'Treino iniciado com ${dadosAprovados.length} exemplo(s) aprovados.',
     ));
 
+    const duracoesPorHardware = [10, 7, 5, 3];
+    final nivel = state.nivelHardware.clamp(0, duracoesPorHardware.length - 1).toInt();
+    final duracaoBase = _duracaoTreino == const Duration(seconds: 10)
+        ? Duration(seconds: duracoesPorHardware[nivel])
+        : _duracaoTreino;
+    final duracaoEfetiva = Duration(
+      milliseconds: max(1, (duracaoBase.inMilliseconds * pow(0.85, state.nivelCooler)).round()),
+    );
     final intervaloMs = max(1, _intervaloTreino.inMilliseconds);
-    final passos = max(1, (_duracaoTreino.inMilliseconds / intervaloMs).ceil());
-    final atrasoMs = max(1, (_duracaoTreino.inMilliseconds / passos).ceil());
+    final passos = max(1, (duracaoEfetiva.inMilliseconds / intervaloMs).ceil());
+    final atrasoMs = max(1, (duracaoEfetiva.inMilliseconds / passos).ceil());
     for (var passo = 1; passo <= passos; passo++) {
       await Future<void>.delayed(Duration(milliseconds: atrasoMs));
       if (isClosed) return;
@@ -453,6 +633,250 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
         progressoTreino: 1,
         lossTreino: 0.3,
         mensagem: 'Treino concluído! ${idsTreinados.length} exemplo(s) aprovado(s) incorporado(s).',
+      ),
+      emit,
+    );
+  }
+
+  Future<void> _comprarHardware(
+    HardwareCompraSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (_bloquearDuranteTreino(emit)) return;
+    final proximoNivel = state.nivelHardware + 1;
+    if (proximoNivel >= CatalogoLoja.precosHardware.length) {
+      await _publicar(state.copyWith(mensagem: 'Você já possui o melhor hardware disponível.'), emit);
+      return;
+    }
+    final custo = CatalogoLoja.precosHardware[proximoNivel];
+    if (state.creditos < custo) {
+      await _publicar(state.copyWith(mensagem: 'Hardware custa $custo créditos; saldo insuficiente.'), emit);
+      return;
+    }
+    await _publicar(
+      state.copyWith(
+        nivelHardware: proximoNivel,
+        creditos: state.creditos - custo,
+        mensagem: '${CatalogoLoja.nomesHardware[proximoNivel]} adquirido! Modelo: ${CatalogoLoja.modelosHardware[proximoNivel]}.',
+      ),
+      emit,
+    );
+  }
+
+  Future<void> _comprarUpgrade(
+    UpgradeCompraSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (_bloquearDuranteTreino(emit)) return;
+    final nivelAtual = switch (evento.upgradeId) {
+      'ssd' => state.nivelSsd,
+      'cooler' => state.nivelCooler,
+      _ => null,
+    };
+    final nivelMaximo = switch (evento.upgradeId) {
+      'ssd' => 6,
+      'cooler' => 4,
+      _ => 0,
+    };
+    if (nivelAtual == null) {
+      await _publicar(state.copyWith(mensagem: 'Upgrade não encontrado.'), emit);
+      return;
+    }
+    if (nivelAtual >= nivelMaximo) {
+      await _publicar(state.copyWith(mensagem: 'Esse upgrade já está no nível máximo.'), emit);
+      return;
+    }
+    final custo = evento.upgradeId == 'ssd'
+        ? CatalogoLoja.precoSsd(nivelAtual)
+        : CatalogoLoja.precoCooler(nivelAtual);
+    if (state.creditos < custo) {
+      await _publicar(state.copyWith(mensagem: 'Upgrade custa $custo créditos; saldo insuficiente.'), emit);
+      return;
+    }
+    final novoNivel = nivelAtual + 1;
+    final atualizado = evento.upgradeId == 'ssd'
+        ? state.copyWith(nivelSsd: novoNivel)
+        : state.copyWith(nivelCooler: novoNivel);
+    await _publicar(
+      atualizado.copyWith(
+        creditos: state.creditos - custo,
+        mensagem: evento.upgradeId == 'ssd'
+            ? 'SSD aprimorado para nível $novoNivel. Capacidade do dataset: ${atualizado.capacidadeDados} exemplos.'
+            : 'Cooler aprimorado para nível $novoNivel. O próximo treino será mais rápido.',
+      ),
+      emit,
+    );
+  }
+
+  Future<void> _comprarPacote(
+    PacoteCompraSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (_bloquearDuranteTreino(emit)) return;
+    final custo = CatalogoLoja.precosPacotes[evento.categoriaId];
+    final nome = CatalogoLoja.nomesPacotes[evento.categoriaId];
+    if (custo == null || nome == null || !BancoPerguntas.perguntas.containsKey(evento.categoriaId)) {
+      await _publicar(state.copyWith(mensagem: 'Pacote de dados indisponível.'), emit);
+      return;
+    }
+    if (state.categoriasLiberadas.contains(evento.categoriaId)) {
+      await _publicar(state.copyWith(mensagem: 'Esse pacote já está liberado.'), emit);
+      return;
+    }
+    if (state.creditos < custo) {
+      await _publicar(state.copyWith(mensagem: 'Pacote custa $custo créditos; saldo insuficiente.'), emit);
+      return;
+    }
+    await _publicar(
+      state.copyWith(
+        creditos: state.creditos - custo,
+        categoriasLiberadas: {...state.categoriasLiberadas, evento.categoriaId},
+        mensagem: 'Pacote "$nome" liberado. Já pode coletar exemplos no TreinaAI.',
+      ),
+      emit,
+    );
+  }
+
+  void _novaRodadaRotulo(
+    RotuloPayNovaRodadaSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) {
+    final pools = BancoPerguntas.perguntas.entries
+        .where((entrada) => state.categoriasLiberadas.contains(entrada.key))
+        .expand((entrada) => entrada.value.map((par) => (entrada.key, par)))
+        .toList(growable: false);
+    if (pools.isEmpty) {
+      emit(state.copyWith(mensagem: 'Não há perguntas disponíveis para avaliar.'));
+      return;
+    }
+    final item = pools[_aleatorio.nextInt(pools.length)];
+    final correta = _aleatorio.nextBool();
+    final resposta = correta
+        ? item.$2.resposta
+        : _respostaIncorreta(item.$1, item.$2);
+    emit(state.copyWith(
+      rotuloPergunta: item.$2.pergunta,
+      rotuloResposta: resposta,
+      rotuloRespostaCorreta: correta,
+      limparMensagem: true,
+    ));
+  }
+
+  Future<void> _responderRotulo(
+    RotuloPayRespostaEnviada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (state.rotuloPergunta == null || state.rotuloResposta == null) {
+      emit(state.copyWith(mensagem: 'Gere uma tarefa do RotuloPay primeiro.'));
+      return;
+    }
+    final acertou = evento.julgouCorreta == state.rotuloRespostaCorreta;
+    final sequencia = acertou ? state.rotuloSequencia + 1 : 0;
+    final premioSequencia = acertou && sequencia % 5 == 0 ? 10 : 0;
+    final variacao = acertou ? 3 + premioSequencia : -2;
+    final creditos = (state.creditos + variacao).clamp(0, 1 << 30).toInt();
+    await _publicar(
+      state.copyWith(
+        creditos: creditos,
+        rotuloSequencia: sequencia,
+        limparRotulo: true,
+        mensagem: acertou
+            ? premioSequencia > 0
+                ? 'Classificação correta! +3 créditos e bônus de sequência +10.'
+                : 'Classificação correta! +3 créditos.'
+            : 'Classificação incorreta. −2 créditos e sequência reiniciada.',
+      ),
+      emit,
+    );
+  }
+
+  void _novaFraseDigita(
+    DigitaJaNovaFraseSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) {
+    final indice = _aleatorio.nextInt(AtividadesNavegador.frasesDigitaJa.length);
+    emit(state.copyWith(
+      digitaFrase: AtividadesNavegador.frasesDigitaJa[indice],
+      limparMensagem: true,
+    ));
+  }
+
+  Future<void> _responderDigita(
+    DigitaJaRespostaEnviada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    final frase = state.digitaFrase;
+    if (frase == null) {
+      emit(state.copyWith(mensagem: 'Gere uma frase do DigitaJá primeiro.'));
+      return;
+    }
+    final correto = _normalizarTexto(evento.resposta) == _normalizarTexto(frase);
+    final novosCreditos = state.creditos + (correto ? 12 : 0);
+    final novaFrase = AtividadesNavegador.frasesDigitaJa[
+      _aleatorio.nextInt(AtividadesNavegador.frasesDigitaJa.length)
+    ];
+    await _publicar(
+      state.copyWith(
+        creditos: novosCreditos,
+        digitaFrase: novaFrase,
+        mensagem: correto
+            ? 'Muito bem! Frase digitada corretamente: +12 créditos.'
+            : 'A frase não corresponde. Tente a próxima; não houve perda de créditos.',
+      ),
+      emit,
+    );
+  }
+
+  String _normalizarTexto(String texto) {
+    const de = 'áàâãäéèêëíìîïóòôõöúùûüç';
+    const para = 'aaaaaeeeeiiiiooooouuuuc';
+    var normalizado = texto.toLowerCase();
+    for (var i = 0; i < de.length; i++) {
+      normalizado = normalizado.replaceAll(de[i], para[i]);
+    }
+    return normalizado
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  Future<void> _venderNoDataMarket(
+    DataMarketVendaSolicitada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    final disponiveis = state.dados.where((dado) {
+      final chave = '${dado.categoriaId}|${dado.pergunta}';
+      return dado.treinado && !state.perguntasVendidas.contains(chave);
+    }).toList(growable: false);
+    if (disponiveis.isEmpty) {
+      await _publicar(
+        state.copyWith(dataMarketMensagem: 'Não há exemplos treinados novos para vender.'),
+        emit,
+      );
+      return;
+    }
+    var saldo = 0;
+    for (final dado in disponiveis) {
+      saldo += dado.ruim ? -4 : 2;
+    }
+    saldo = saldo < 0 ? 0 : saldo;
+    final vendidas = {
+      ...state.perguntasVendidas,
+      for (final dado in disponiveis) '${dado.categoriaId}|${dado.pergunta}',
+    };
+    final dados = state.dados.map((dado) {
+      return disponiveis.any((item) => item.id == dado.id)
+          ? dado.copyWith(vendido: true)
+          : dado;
+    }).toList(growable: false);
+    final corretos = disponiveis.where((dado) => !dado.ruim).length;
+    final incorretos = disponiveis.length - corretos;
+    await _publicar(
+      state.copyWith(
+        creditos: state.creditos + saldo,
+        dados: dados,
+        perguntasVendidas: vendidas,
+        dataMarketMensagem: 'Venda concluída: $corretos corretos, $incorretos incorretos. +$saldo créditos.',
       ),
       emit,
     );

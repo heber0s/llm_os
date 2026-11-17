@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/pixel_theme.dart';
 import '../features/desktop/cubit/janelas_cubit.dart';
 import '../features/jogo/bloc/jogo_bloc.dart';
+import '../features/loja/view/pixel_store_view.dart';
+import '../features/navegador/view/navegador_view.dart';
 import '../features/treino/view/treina_view.dart';
 
 class LlmOsApp extends StatelessWidget {
@@ -285,9 +287,12 @@ class _AppWindow extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: app.id == 'treina'
-                  ? const TreinaView()
-                  : _AppPlaceholder(app: app),
+              child: switch (app.id) {
+                'treina' => const TreinaView(),
+                'loja' => const PixelStoreView(),
+                'navegador' => const NavegadorView(),
+                _ => _AppPlaceholder(app: app),
+              },
             ),
           ],
         ),
