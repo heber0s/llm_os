@@ -1,19 +1,27 @@
-# LLM OS — renda passiva e automação
+# Atualização do LLM OS — ChatAI e busca por similaridade
 
-Este pacote é um overlay da atualização, com versões completas dos arquivos Dart alterados e um novo teste. Extraia o conteúdo sobre a raiz do clone do projeto, permitindo substituir os arquivos correspondentes.
+Esta atualização corresponde ao próximo marco do plano: conectar o ChatAI ao dataset já existente, usando uma implementação simulada do serviço de resposta.
 
-## O que foi implementado
+## Arquivos
 
-- **Renda passiva:** a cada 10 segundos, concede 1, 3, 6 ou 12 créditos conforme o hardware, mais 2 créditos por nível de Internet.
-- **Bot coletor:** a cada 20 segundos, tenta coletar 1 exemplo por nível na categoria selecionada; respeita o espaço livre, não repete perguntas e mantém a chance de 30% de resposta incorreta.
-- **Upgrades na PixelStore:** RAM (máximo nível 3), Bot coletor (máximo 3) e Internet (máximo 5), com preços progressivos e persistência local.
-- **RAM:** o nível é salvo e exibido como capacidade de consulta do modelo. O repositório atual ainda não tem um ChatAI funcional; conectar esse efeito ao modelo ficará para a etapa do ChatAI/FreelaNet.
-- Os timers são cancelados ao fechar o JogoBloc; intervalos configuráveis permitem testes determinísticos.
+- `lib/features/chat/domain/busca_exemplos.dart`: normalização de texto, remoção de stopwords, Jaccard mínimo de 0,7, conferência de números e limite por hardware/RAM.
+- `lib/features/chat/data/servico_llm.dart`: contrato `ServicoLlm`, serviço simulado e montagem de contexto few-shot.
+- `lib/features/chat/cubit/chat_cubit.dart`: histórico do chat, temperatura, recuperação de exemplos aprovados/treinados e controle de resposta em andamento.
+- `lib/features/chat/view/chat_view.dart`: tela ChatAI com histórico, campo de mensagem, temperatura e contagem de exemplos consultados.
+- `lib/app/llm_os_app.dart`: arquivo completo da tela principal com a janela ChatAI conectada.
+- `test/features/chat/domain/busca_exemplos_test.dart`: testes unitários para busca, elegibilidade, números, ordenação e capacidade.
 
-## Arquivos incluídos
+## Como aplicar
 
-- `lib/features/jogo/bloc/jogo_bloc.dart` — versão completa atualizada.
-- `lib/features/loja/view/pixel_store_view.dart` — versão completa atualizada.
-- `test/features/jogo/bloc/jogo_income_bot_test.dart` — testes de renda, coleta, upgrades e persistência.
+Extraia o conteúdo deste pacote sobre a raiz do clone do projeto e aceite a substituição do `lib/app/llm_os_app.dart`. Os demais caminhos são novos. Não há dependências novas.
 
-Depois de extrair, execute `flutter test` e `flutter run` na raiz do projeto. Não foi possível executar Flutter/Dart neste ambiente.
+Depois, execute na pasta do projeto:
+
+```powershell
+flutter test
+flutter run
+```
+
+## Limite desta etapa
+
+O ChatAI ainda usa `ServicoLlmSimulado`: responde com a resposta do exemplo mais parecido e dá uma mensagem de contingência quando não há correspondência. A temperatura e o limite de tokens são apresentados à interface do serviço, mas o simulador não faz amostragem nem executa um modelo real; o histórico e a temperatura também ficam apenas enquanto a janela ChatAI permanecer aberta. A integração com o modelo nativo GGUF permanece como a próxima etapa.

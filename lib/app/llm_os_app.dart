@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/theme/pixel_theme.dart';
 import '../features/desktop/cubit/janelas_cubit.dart';
+import '../features/chat/view/chat_view.dart';
 import '../features/jogo/bloc/jogo_bloc.dart';
 import '../features/loja/view/pixel_store_view.dart';
 import '../features/navegador/view/navegador_view.dart';
@@ -291,6 +292,7 @@ class _AppWindow extends StatelessWidget {
                 'treina' => const TreinaView(),
                 'loja' => const PixelStoreView(),
                 'navegador' => const NavegadorView(),
+                'chat' => const ChatView(),
                 _ => _AppPlaceholder(app: app),
               },
             ),
