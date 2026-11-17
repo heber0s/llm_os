@@ -103,6 +103,21 @@ class DataMarketVendaSolicitada extends JogoEvento {
   const DataMarketVendaSolicitada();
 }
 
+class VagaConcluidaRegistrada extends JogoEvento {
+  const VagaConcluidaRegistrada({
+    required this.vagaId,
+    required this.pagamento,
+    required this.concluidaEmMs,
+  });
+
+  final String vagaId;
+  final int pagamento;
+  final int concluidaEmMs;
+
+  @override
+  List<Object?> get props => [vagaId, pagamento, concluidaEmMs];
+}
+
 class RendaPassivaTick extends JogoEvento {
   const RendaPassivaTick();
 }
@@ -186,6 +201,7 @@ class JogoEstado extends Equatable {
     this.digitaFrase,
     this.dataMarketMensagem,
     this.perguntasVendidas = const {},
+    this.cooldownsVagas = const {},
   });
 
   final int creditos;
@@ -212,6 +228,7 @@ class JogoEstado extends Equatable {
   final String? digitaFrase;
   final String? dataMarketMensagem;
   final Set<String> perguntasVendidas;
+  final Map<String, int> cooldownsVagas;
 
   int get quantidadeDados => dados.length;
   int get capacidadeDados => 40 + (nivelSsd * 40);
@@ -251,6 +268,7 @@ class JogoEstado extends Equatable {
     String? digitaFrase,
     String? dataMarketMensagem,
     Set<String>? perguntasVendidas,
+    Map<String, int>? cooldownsVagas,
     bool limparRotulo = false,
     bool limparMensagem = false,
   }) =>
@@ -279,6 +297,7 @@ class JogoEstado extends Equatable {
         digitaFrase: digitaFrase ?? this.digitaFrase,
         dataMarketMensagem: dataMarketMensagem ?? this.dataMarketMensagem,
         perguntasVendidas: perguntasVendidas ?? this.perguntasVendidas,
+        cooldownsVagas: cooldownsVagas ?? this.cooldownsVagas,
       );
 
   factory JogoEstado.fromJson(Map<String, dynamic> json) {
@@ -289,6 +308,10 @@ class JogoEstado extends Equatable {
             .map((item) => DadoTreino.fromJson(Map<String, dynamic>.from(item)))
             .toList(growable: false)
         : const <DadoTreino>[];
+    final mapaCooldowns = json['cooldownsVagas'];
+    final cooldowns = mapaCooldowns is Map
+        ? mapaCooldowns.map((chave, valor) => MapEntry(chave.toString(), _inteiro(valor, 0)))
+        : <String, int>{};
     final listaUsadas = json['perguntasUsadas'];
     final usadas = listaUsadas is List
         ? listaUsadas.whereType<String>().toSet()
@@ -311,6 +334,7 @@ class JogoEstado extends Equatable {
       perguntasVendidas: json['perguntasVendidas'] is List
           ? (json['perguntasVendidas'] as List).whereType<String>().toSet()
           : const {},
+      cooldownsVagas: cooldowns,
       epocasTreinadas: _inteiro(json['epocasTreinadas'], 0),
       dados: dados,
       perguntasUsadas: usadas,
@@ -329,6 +353,7 @@ class JogoEstado extends Equatable {
         'nivelInternet': nivelInternet,
         'categoriasLiberadas': categoriasLiberadas.toList(growable: false),
         'perguntasVendidas': perguntasVendidas.toList(growable: false),
+        'cooldownsVagas': cooldownsVagas,
         'rotuloSequencia': rotuloSequencia,
         'epocasTreinadas': epocasTreinadas,
         'dados': dados.map((dado) => dado.toJson()).toList(growable: false),
@@ -355,6 +380,7 @@ class JogoEstado extends Equatable {
         digitaFrase,
         dataMarketMensagem,
         perguntasVendidas,
+        cooldownsVagas,
         epocasTreinadas,
         dados,
         perguntasUsadas,
@@ -397,6 +423,7 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     on<DigitaJaNovaFraseSolicitada>(_novaFraseDigita);
     on<DigitaJaRespostaEnviada>(_responderDigita);
     on<DataMarketVendaSolicitada>(_venderNoDataMarket);
+    on<VagaConcluidaRegistrada>(_registrarVagaConcluida);
     on<RendaPassivaTick>(_tickRenda);
     on<BotColetaTick>(_tickBot);
     _timerRenda = Timer.periodic(_intervaloRenda, (_) {
@@ -963,6 +990,24 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
       ),
       emit,
     );
+  }
+
+  Future<void> _registrarVagaConcluida(
+    VagaConcluidaRegistrada evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (!state.carregado || evento.vagaId.isEmpty || evento.pagamento < 0) return;
+    final agora = DateTime.now().millisecondsSinceEpoch;
+    final ultimaConclusao = state.cooldownsVagas[evento.vagaId];
+    if (ultimaConclusao != null && agora - ultimaConclusao < const Duration(seconds: 45).inMilliseconds) {
+      return;
+    }
+    final atualizado = state.copyWith(
+      creditos: state.creditos + evento.pagamento,
+      cooldownsVagas: {...state.cooldownsVagas, evento.vagaId: evento.concluidaEmMs},
+      mensagem: 'FreelaNet: trabalho concluído. +${evento.pagamento} créditos.',
+    );
+    await _publicar(atualizado, emit);
   }
 
   Future<void> _tickRenda(

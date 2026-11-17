@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/pixel_theme.dart';
 import '../../jogo/bloc/jogo_bloc.dart';
+import '../../vagas/cubit/vagas_cubit.dart';
+import '../../vagas/domain/vagas.dart';
 
 class NavegadorView extends StatelessWidget {
   const NavegadorView({super.key});
@@ -59,7 +61,7 @@ class NavegadorView extends StatelessWidget {
                     _RotuloPayTab(estado: estado),
                     _DigitaJaTab(estado: estado),
                     _DataMarketTab(estado: estado),
-                    const _FreelaNetTab(),
+                    _FreelaNetTab(estado: estado),
                   ],
                 ),
               ),
@@ -281,8 +283,45 @@ class _DataMarketTab extends StatelessWidget {
   }
 }
 
-class _FreelaNetTab extends StatelessWidget {
-  const _FreelaNetTab();
+class _FreelaNetTab extends StatefulWidget {
+  const _FreelaNetTab({required this.estado});
+  final JogoEstado estado;
+
+  @override
+  State<_FreelaNetTab> createState() => _FreelaNetTabState();
+}
+
+class _FreelaNetTabState extends State<_FreelaNetTab> {
+  late final VagasCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = VagasCubit(context.read<JogoBloc>());
+  }
+
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => BlocProvider.value(
+        value: _cubit,
+        child: BlocBuilder<VagasCubit, VagasEstado>(
+          builder: (context, vagas) => _FreelaNetConteudo(
+            jogo: widget.estado,
+            vagas: vagas,
+          ),
+        ),
+      );
+}
+
+class _FreelaNetConteudo extends StatelessWidget {
+  const _FreelaNetConteudo({required this.jogo, required this.vagas});
+  final JogoEstado jogo;
+  final VagasEstado vagas;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -290,23 +329,89 @@ class _FreelaNetTab extends StatelessWidget {
         children: [
           const _SiteHeading(
             titulo: 'FreelaNet',
-            subtitulo: 'Trabalhos avaliados pelas respostas do seu modelo.',
+            subtitulo: 'Aceite trabalhos e receba conforme o desempenho do seu modelo.',
             cor: PixelTheme.verde,
           ),
-          const SizedBox(height: 12),
-          const _SitePanel(
-            child: Column(
-              children: [
-                Icon(Icons.work_outline, size: 40, color: PixelTheme.amarelo),
-                SizedBox(height: 10),
-                Text(
-                  'O quadro de vagas será ligado ao ChatAI na próxima etapa. Primeiro estamos preparando as atividades rápidas de renda.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: PixelTheme.textoSuave, height: 1.5),
-                ),
-              ],
-            ),
+          const SizedBox(height: 10),
+          const _InfoStrip(
+            texto: 'O modelo desta etapa é simulado e responde usando apenas exemplos treinados do seu dataset. Cada vaga tem 45s de intervalo.',
           ),
+          if (vagas.mensagem != null) ...[
+            const SizedBox(height: 10),
+            _StatusBox(texto: vagas.mensagem!),
+          ],
+          if (vagas.vagaAtiva != null && (vagas.emExecucao || vagas.concluida || vagas.resultados.isNotEmpty)) ...[
+            const SizedBox(height: 12),
+            _SitePanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(vagas.vagaAtiva!.titulo, style: const TextStyle(color: PixelTheme.amarelo, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (vagas.emExecucao) ...[
+                    LinearProgressIndicator(value: vagas.total == 0 ? 0 : vagas.processadas / vagas.total),
+                    const SizedBox(height: 6),
+                    Text('Analisando pergunta ${vagas.processadas} de ${vagas.total}…', style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11)),
+                  ],
+                  if (vagas.resultados.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    for (final resultado in vagas.resultados)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 7),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          color: PixelTheme.preto.withValues(alpha: 0.32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(resultado.pergunta, style: const TextStyle(color: PixelTheme.texto, fontWeight: FontWeight.bold, fontSize: 11)),
+                              const SizedBox(height: 4),
+                              Text('Modelo: ${resultado.respostaModelo}', style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11)),
+                              Text('Esperado: ${resultado.respostaEsperada}', style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11)),
+                              const SizedBox(height: 3),
+                              Text(resultado.correta ? 'CORRETA' : 'INCORRETA', style: TextStyle(color: resultado.correta ? PixelTheme.verde : PixelTheme.vermelho, fontWeight: FontWeight.bold, fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          for (final vaga in VagaFreela.todas)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _SitePanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.work_outline, color: PixelTheme.amarelo, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(vaga.titulo, style: const TextStyle(color: PixelTheme.texto, fontWeight: FontWeight.bold))),
+                        Text('até ${vaga.pagamentoMaximo} cr', style: const TextStyle(color: PixelTheme.amarelo, fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(vaga.descricao, style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11, height: 1.3)),
+                    const SizedBox(height: 5),
+                    Text('${vaga.quantidadePerguntas} perguntas • ${vaga.hardwareMinimo == 0 ? 'Notebook velho' : CatalogoLoja.nomesHardware[vaga.hardwareMinimo]} necessário', style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 10)),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.icon(
+                        onPressed: vagas.emExecucao ? null : () => context.read<VagasCubit>().iniciar(vaga),
+                        icon: Icon(jogo.nivelHardware < vaga.hardwareMinimo ? Icons.lock_outline : Icons.play_arrow),
+                        label: Text(jogo.nivelHardware < vaga.hardwareMinimo ? 'Hardware insuficiente' : 'Aceitar trabalho'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       );
 }
