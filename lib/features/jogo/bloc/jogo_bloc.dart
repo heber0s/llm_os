@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:equatable/equatable.dart';
@@ -102,6 +103,14 @@ class DataMarketVendaSolicitada extends JogoEvento {
   const DataMarketVendaSolicitada();
 }
 
+class RendaPassivaTick extends JogoEvento {
+  const RendaPassivaTick();
+}
+
+class BotColetaTick extends JogoEvento {
+  const BotColetaTick();
+}
+
 abstract final class CatalogoLoja {
   static const List<int> precosHardware = [0, 150, 500, 1500];
   static const List<String> nomesHardware = [
@@ -128,8 +137,14 @@ abstract final class CatalogoLoja {
   };
   static const int precoBaseSsd = 60;
   static const int precoBaseCooler = 100;
+  static const int precoBaseRam = 80;
+  static const int precoBaseBot = 200;
+  static const int precoBaseInternet = 120;
   static int precoSsd(int nivel) => precoBaseSsd * (nivel + 1);
   static int precoCooler(int nivel) => precoBaseCooler * (nivel + 1);
+  static int precoRam(int nivel) => precoBaseRam * (nivel + 1);
+  static int precoBot(int nivel) => precoBaseBot * (nivel + 1);
+  static int precoInternet(int nivel) => precoBaseInternet * (nivel + 1);
 }
 
 abstract final class AtividadesNavegador {
@@ -151,6 +166,9 @@ class JogoEstado extends Equatable {
     this.nivelHardware = 0,
     this.nivelSsd = 0,
     this.nivelCooler = 0,
+    this.nivelRam = 0,
+    this.nivelBot = 0,
+    this.nivelInternet = 0,
     this.categoriasLiberadas = const {'geo', 'mat', 'nat'},
     this.epocasTreinadas = 0,
     this.dados = const [],
@@ -174,6 +192,9 @@ class JogoEstado extends Equatable {
   final int nivelHardware;
   final int nivelSsd;
   final int nivelCooler;
+  final int nivelRam;
+  final int nivelBot;
+  final int nivelInternet;
   final Set<String> categoriasLiberadas;
   final int epocasTreinadas;
   final List<DadoTreino> dados;
@@ -194,6 +215,11 @@ class JogoEstado extends Equatable {
 
   int get quantidadeDados => dados.length;
   int get capacidadeDados => 40 + (nivelSsd * 40);
+  int get rendaPassivaPorCiclo {
+    const rendasHardware = [1, 3, 6, 12];
+    final nivel = nivelHardware.clamp(0, rendasHardware.length - 1).toInt();
+    return rendasHardware[nivel] + (nivelInternet * 2);
+  }
   int get espacoLivre => capacidadeDados > quantidadeDados
       ? capacidadeDados - quantidadeDados
       : 0;
@@ -205,6 +231,9 @@ class JogoEstado extends Equatable {
     int? nivelHardware,
     int? nivelSsd,
     int? nivelCooler,
+    int? nivelRam,
+    int? nivelBot,
+    int? nivelInternet,
     Set<String>? categoriasLiberadas,
     int? epocasTreinadas,
     List<DadoTreino>? dados,
@@ -230,6 +259,9 @@ class JogoEstado extends Equatable {
         nivelHardware: nivelHardware ?? this.nivelHardware,
         nivelSsd: nivelSsd ?? this.nivelSsd,
         nivelCooler: nivelCooler ?? this.nivelCooler,
+        nivelRam: nivelRam ?? this.nivelRam,
+        nivelBot: nivelBot ?? this.nivelBot,
+        nivelInternet: nivelInternet ?? this.nivelInternet,
         categoriasLiberadas: categoriasLiberadas ?? this.categoriasLiberadas,
         epocasTreinadas: epocasTreinadas ?? this.epocasTreinadas,
         dados: dados ?? this.dados,
@@ -269,6 +301,9 @@ class JogoEstado extends Equatable {
       nivelHardware: _inteiro(json['nivelHardware'], 0),
       nivelSsd: _inteiro(json['nivelSsd'], 0),
       nivelCooler: _inteiro(json['nivelCooler'], 0),
+      nivelRam: _inteiro(json['nivelRam'], 0),
+      nivelBot: _inteiro(json['nivelBot'], 0),
+      nivelInternet: _inteiro(json['nivelInternet'], 0),
       rotuloSequencia: _inteiro(json['rotuloSequencia'], 0),
       categoriasLiberadas: json['categoriasLiberadas'] is List
           ? (json['categoriasLiberadas'] as List).whereType<String>().toSet()
@@ -289,6 +324,9 @@ class JogoEstado extends Equatable {
         'nivelHardware': nivelHardware,
         'nivelSsd': nivelSsd,
         'nivelCooler': nivelCooler,
+        'nivelRam': nivelRam,
+        'nivelBot': nivelBot,
+        'nivelInternet': nivelInternet,
         'categoriasLiberadas': categoriasLiberadas.toList(growable: false),
         'perguntasVendidas': perguntasVendidas.toList(growable: false),
         'rotuloSequencia': rotuloSequencia,
@@ -306,6 +344,9 @@ class JogoEstado extends Equatable {
         nivelHardware,
         nivelSsd,
         nivelCooler,
+        nivelRam,
+        nivelBot,
+        nivelInternet,
         categoriasLiberadas,
         rotuloPergunta,
         rotuloResposta,
@@ -332,9 +373,13 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     Random? aleatorio,
     Duration duracaoTreino = const Duration(seconds: 10),
     Duration intervaloTreino = const Duration(milliseconds: 200),
+    Duration intervaloRenda = const Duration(seconds: 10),
+    Duration intervaloBot = const Duration(seconds: 20),
   })  : _aleatorio = aleatorio ?? Random(),
         _duracaoTreino = duracaoTreino,
         _intervaloTreino = intervaloTreino,
+        _intervaloRenda = intervaloRenda,
+        _intervaloBot = intervaloBot,
         super(const JogoEstado()) {
     on<JogoInicializacaoSolicitada>(_inicializar);
     on<JogoReiniciadoSolicitado>(_reiniciar);
@@ -352,13 +397,32 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     on<DigitaJaNovaFraseSolicitada>(_novaFraseDigita);
     on<DigitaJaRespostaEnviada>(_responderDigita);
     on<DataMarketVendaSolicitada>(_venderNoDataMarket);
+    on<RendaPassivaTick>(_tickRenda);
+    on<BotColetaTick>(_tickBot);
+    _timerRenda = Timer.periodic(_intervaloRenda, (_) {
+      if (!isClosed) add(const RendaPassivaTick());
+    });
+    _timerBot = Timer.periodic(_intervaloBot, (_) {
+      if (!isClosed) add(const BotColetaTick());
+    });
   }
 
   final JogoRepositorio _repositorio;
   final Random _aleatorio;
   final Duration _duracaoTreino;
   final Duration _intervaloTreino;
+  final Duration _intervaloRenda;
+  final Duration _intervaloBot;
+  late final Timer _timerRenda;
+  late final Timer _timerBot;
   int _sequenciaId = 0;
+
+  @override
+  Future<void> close() {
+    _timerRenda.cancel();
+    _timerBot.cancel();
+    return super.close();
+  }
 
   Future<void> _inicializar(
     JogoInicializacaoSolicitada evento,
@@ -671,11 +735,17 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
     final nivelAtual = switch (evento.upgradeId) {
       'ssd' => state.nivelSsd,
       'cooler' => state.nivelCooler,
+      'ram' => state.nivelRam,
+      'bot' => state.nivelBot,
+      'internet' => state.nivelInternet,
       _ => null,
     };
     final nivelMaximo = switch (evento.upgradeId) {
       'ssd' => 6,
       'cooler' => 4,
+      'ram' => 3,
+      'bot' => 3,
+      'internet' => 5,
       _ => 0,
     };
     if (nivelAtual == null) {
@@ -686,23 +756,36 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
       await _publicar(state.copyWith(mensagem: 'Esse upgrade já está no nível máximo.'), emit);
       return;
     }
-    final custo = evento.upgradeId == 'ssd'
-        ? CatalogoLoja.precoSsd(nivelAtual)
-        : CatalogoLoja.precoCooler(nivelAtual);
+    final custo = switch (evento.upgradeId) {
+      'ssd' => CatalogoLoja.precoSsd(nivelAtual),
+      'cooler' => CatalogoLoja.precoCooler(nivelAtual),
+      'ram' => CatalogoLoja.precoRam(nivelAtual),
+      'bot' => CatalogoLoja.precoBot(nivelAtual),
+      _ => CatalogoLoja.precoInternet(nivelAtual),
+    };
     if (state.creditos < custo) {
       await _publicar(state.copyWith(mensagem: 'Upgrade custa $custo créditos; saldo insuficiente.'), emit);
       return;
     }
     final novoNivel = nivelAtual + 1;
-    final atualizado = evento.upgradeId == 'ssd'
-        ? state.copyWith(nivelSsd: novoNivel)
-        : state.copyWith(nivelCooler: novoNivel);
+    final atualizado = switch (evento.upgradeId) {
+      'ssd' => state.copyWith(nivelSsd: novoNivel),
+      'cooler' => state.copyWith(nivelCooler: novoNivel),
+      'ram' => state.copyWith(nivelRam: novoNivel),
+      'bot' => state.copyWith(nivelBot: novoNivel),
+      _ => state.copyWith(nivelInternet: novoNivel),
+    };
+    final descricao = switch (evento.upgradeId) {
+      'ssd' => 'Capacidade do dataset: ${atualizado.capacidadeDados} exemplos.',
+      'cooler' => 'O próximo treino será mais rápido.',
+      'ram' => 'Seu modelo poderá consultar ${1 + atualizado.nivelRam} exemplo(s) por resposta.',
+      'bot' => 'O bot coletará ${atualizado.nivelBot} exemplo(s) a cada 20 segundos.',
+      _ => 'Renda passiva agora: ${atualizado.rendaPassivaPorCiclo} cr a cada 10 segundos.',
+    };
     await _publicar(
       atualizado.copyWith(
         creditos: state.creditos - custo,
-        mensagem: evento.upgradeId == 'ssd'
-            ? 'SSD aprimorado para nível $novoNivel. Capacidade do dataset: ${atualizado.capacidadeDados} exemplos.'
-            : 'Cooler aprimorado para nível $novoNivel. O próximo treino será mais rápido.',
+        mensagem: '${evento.upgradeId.toUpperCase()} aprimorado para nível $novoNivel. $descricao',
       ),
       emit,
     );
@@ -877,6 +960,60 @@ class JogoBloc extends Bloc<JogoEvento, JogoEstado> {
         dados: dados,
         perguntasVendidas: vendidas,
         dataMarketMensagem: 'Venda concluída: $corretos corretos, $incorretos incorretos. +$saldo créditos.',
+      ),
+      emit,
+    );
+  }
+
+  Future<void> _tickRenda(
+    RendaPassivaTick evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (!state.carregado) return;
+    final novosCreditos = state.creditos + state.rendaPassivaPorCiclo;
+    await _publicar(state.copyWith(creditos: novosCreditos), emit);
+  }
+
+  Future<void> _tickBot(
+    BotColetaTick evento,
+    Emitter<JogoEstado> emit,
+  ) async {
+    if (!state.carregado || state.treinoEmAndamento || state.nivelBot <= 0) return;
+    if (state.espacoLivre <= 0 || !state.categoriasLiberadas.contains(state.categoriaSelecionada)) return;
+
+    final categoriaId = state.categoriaSelecionada;
+    final categoria = BancoPerguntas.categoriaPorId(categoriaId);
+    final livres = (BancoPerguntas.perguntas[categoriaId] ?? const <PerguntaResposta>[])
+        .where((item) => !state.perguntasUsadas.contains('$categoriaId|${item.pergunta}'))
+        .toList();
+    final quantidade = min(state.nivelBot, min(state.espacoLivre, livres.length)).toInt();
+    if (quantidade <= 0) return;
+
+    final dados = [...state.dados];
+    final usadas = {...state.perguntasUsadas};
+    for (var indice = 0; indice < quantidade; indice++) {
+      final pergunta = livres.removeAt(_aleatorio.nextInt(livres.length));
+      final ruim = _aleatorio.nextDouble() < 0.30;
+      final resposta = ruim ? _respostaIncorreta(categoriaId, pergunta) : pergunta.resposta;
+      usadas.add('$categoriaId|${pergunta.pergunta}');
+      dados.insert(
+        0,
+        DadoTreino(
+          id: '${DateTime.now().microsecondsSinceEpoch}_${_sequenciaId++}',
+          categoriaId: categoriaId,
+          categoriaNome: categoria.nome,
+          pergunta: pergunta.pergunta,
+          resposta: resposta,
+          ruim: ruim,
+        ),
+      );
+    }
+
+    await _publicar(
+      state.copyWith(
+        dados: dados,
+        perguntasUsadas: usadas,
+        mensagem: 'Bot coletor adicionou $quantidade exemplo(s) de ${categoria.nome}.',
       ),
       emit,
     );

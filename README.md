@@ -1,29 +1,19 @@
-# Atualização do LLM OS: PixelStore e Navegador
+# LLM OS — renda passiva e automação
 
-Este pacote contém os arquivos completos que foram adicionados ou substituídos na implementação. Não é o repositório inteiro.
+Este pacote é um overlay da atualização, com versões completas dos arquivos Dart alterados e um novo teste. Extraia o conteúdo sobre a raiz do clone do projeto, permitindo substituir os arquivos correspondentes.
 
-## Aplicação
+## O que foi implementado
 
-Extraia o conteúdo deste pacote sobre a raiz do clone do projeto, mantendo a estrutura `lib/` e `test/` e permitindo substituir os arquivos existentes.
+- **Renda passiva:** a cada 10 segundos, concede 1, 3, 6 ou 12 créditos conforme o hardware, mais 2 créditos por nível de Internet.
+- **Bot coletor:** a cada 20 segundos, tenta coletar 1 exemplo por nível na categoria selecionada; respeita o espaço livre, não repete perguntas e mantém a chance de 30% de resposta incorreta.
+- **Upgrades na PixelStore:** RAM (máximo nível 3), Bot coletor (máximo 3) e Internet (máximo 5), com preços progressivos e persistência local.
+- **RAM:** o nível é salvo e exibido como capacidade de consulta do modelo. O repositório atual ainda não tem um ChatAI funcional; conectar esse efeito ao modelo ficará para a etapa do ChatAI/FreelaNet.
+- Os timers são cancelados ao fechar o JogoBloc; intervalos configuráveis permitem testes determinísticos.
 
-O pacote:
+## Arquivos incluídos
 
-- conecta a PixelStore ao desktop, com compras persistidas de hardware, SSD, cooler e pacotes de categorias;
-- expande o banco de perguntas para Conhecimentos Gerais, Português e Tecnologia, liberadas após a compra;
-- conecta ao Navegador as atividades RotuloPay, DigitaJá e DataMarket;
-- conserva permanentemente as perguntas já vendidas no DataMarket, mesmo se o exemplo for removido;
-- inclui testes para compras, serialização, tarefas de renda e prevenção de revenda.
+- `lib/features/jogo/bloc/jogo_bloc.dart` — versão completa atualizada.
+- `lib/features/loja/view/pixel_store_view.dart` — versão completa atualizada.
+- `test/features/jogo/bloc/jogo_income_bot_test.dart` — testes de renda, coleta, upgrades e persistência.
 
-## Validar no seu computador
-
-Na pasta raiz do clone, execute:
-
-```powershell
-flutter pub get
-flutter test
-flutter run
-```
-
-## Limites desta etapa
-
-FreelaNet ainda é uma tela informativa; será implementada na próxima etapa junto com as respostas do ChatAI. Renda passiva e coleta automática do bot também ainda não foram conectadas. O código foi revisado estruturalmente, mas este ambiente não tem Flutter/Dart para executar análise, testes ou build.
+Depois de extrair, execute `flutter test` e `flutter run` na raiz do projeto. Não foi possível executar Flutter/Dart neste ambiente.

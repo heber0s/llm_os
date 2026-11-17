@@ -33,6 +33,11 @@ class PixelStoreView extends StatelessWidget {
                       'Saldo disponível: ${estado.creditos} créditos',
                       style: const TextStyle(color: PixelTheme.amarelo),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Renda passiva: ${estado.rendaPassivaPorCiclo} cr a cada 10 s',
+                      style: const TextStyle(color: PixelTheme.textoSuave, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
@@ -134,7 +139,7 @@ class _UpgradesTab extends StatelessWidget {
         children: [
           const _SectionIntro(
             title: 'APRIMORAMENTOS',
-            description: 'Melhore a capacidade do dataset e reduza o tempo de treino.',
+            description: 'Melhore o dataset, a consulta do modelo, a coleta automática e a renda passiva.',
           ),
           const SizedBox(height: 10),
           _StoreCard(
@@ -163,9 +168,42 @@ class _UpgradesTab extends StatelessWidget {
                 estado.creditos >= CatalogoLoja.precoCooler(estado.nivelCooler),
             onPressed: () => context.read<JogoBloc>().add(const UpgradeCompraSolicitada('cooler')),
           ),
+          _StoreCard(
+            title: 'RAM',
+            subtitle: 'Nível ${estado.nivelRam}/3',
+            description: '+1 exemplo consultado pelo modelo por nível.',
+            accent: const Color(0xFF4F9BFF),
+            status: estado.nivelRam >= 3 ? 'MAX' : '${CatalogoLoja.precoRam(estado.nivelRam)} cr',
+            actionLabel: estado.nivelRam >= 3 ? null : 'Aprimorar',
+            actionEnabled: estado.carregado && !estado.treinoEmAndamento &&
+                estado.nivelRam < 3 && estado.creditos >= CatalogoLoja.precoRam(estado.nivelRam),
+            onPressed: () => context.read<JogoBloc>().add(const UpgradeCompraSolicitada('ram')),
+          ),
+          _StoreCard(
+            title: 'Bot coletor',
+            subtitle: 'Nível ${estado.nivelBot}/3',
+            description: '+1 exemplo coletado automaticamente a cada 20 segundos por nível, na categoria selecionada.',
+            accent: PixelTheme.verde,
+            status: estado.nivelBot >= 3 ? 'MAX' : '${CatalogoLoja.precoBot(estado.nivelBot)} cr',
+            actionLabel: estado.nivelBot >= 3 ? null : 'Aprimorar',
+            actionEnabled: estado.carregado && !estado.treinoEmAndamento &&
+                estado.nivelBot < 3 && estado.creditos >= CatalogoLoja.precoBot(estado.nivelBot),
+            onPressed: () => context.read<JogoBloc>().add(const UpgradeCompraSolicitada('bot')),
+          ),
+          _StoreCard(
+            title: 'Internet',
+            subtitle: 'Nível ${estado.nivelInternet}/5',
+            description: '+2 créditos de renda passiva por nível, recebidos a cada 10 segundos.',
+            accent: PixelTheme.amarelo,
+            status: estado.nivelInternet >= 5 ? 'MAX' : '${CatalogoLoja.precoInternet(estado.nivelInternet)} cr',
+            actionLabel: estado.nivelInternet >= 5 ? null : 'Aprimorar',
+            actionEnabled: estado.carregado && !estado.treinoEmAndamento &&
+                estado.nivelInternet < 5 && estado.creditos >= CatalogoLoja.precoInternet(estado.nivelInternet),
+            onPressed: () => context.read<JogoBloc>().add(const UpgradeCompraSolicitada('internet')),
+          ),
           const SizedBox(height: 4),
           const Text(
-            'Outros componentes serão adicionados junto com as mecânicas que utilizam seus efeitos.',
+            'O bot respeita a capacidade livre do dataset e não repete perguntas já coletadas.',
             style: TextStyle(color: PixelTheme.textoSuave, fontSize: 11, height: 1.4),
           ),
         ],
